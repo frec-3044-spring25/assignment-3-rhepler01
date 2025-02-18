@@ -45,13 +45,28 @@ Describe the overall trend in the CO2 data.
 
 **Answer 1:**
 
+As the years are in increasing we are seeing an increase in CO2 concentration in Mauna Loa
+
 **Question 2:**
 
 How does CO2 vary within a year?  What month is it at max?  Min?  What might explain this sub-annual pattern? (you will need to write code and make a plot to answer this question)
 
 **Answer 2:**
 
+```{r}
+library(dplyr)
 
+co2_monthly_avg <- co2 %>%
+  group_by(month) %>%
+  summarize(monthly_avg = mean(monthly_average, na.rm = TRUE))
+
+ggplot(co2_monthly_avg, aes(x = month, y = monthly_avg)) + 
+  geom_line(color = "red", linewidth = 1) +
+  labs(x = "Month", y = "Average CO2 concentration (ppm)", title = "Monthly Average CO2 Variation at Mauna Loa") + 
+  theme_minimal() + 
+  scale_x_continuous(breaks = 1:12, labels = month.abb)
+```
+May seems to be the month where there is the most CO2, there is a decent amount of variation throughout the year from about 362 to 357ppm. The minimum value looks to be September. Different seasons might have different carbon cycles. Like the summer less carbon might get trapped in the water and in the fall when the water gets colder it might be able to carry more CO2.
 
 ## Global Temperature Data
 
@@ -71,6 +86,8 @@ Describe the data set to the best of your ability, given the documentation provi
 
 **Answer 3:**
 
+This data is from NASA, from GISS. Looks to be surface temperature data from random surface temperature measurements. There are a couple columns we are dealing with which are year (Numeric), global temperature Celsius (Numeric), global temperature anomaly Celsius(Numeric), and uncertainty Celsius(Numeric).
+The difference between global temperature and global temperature anomaly would be that global temperature would be the actual measured temp of the Earth's surface and the latter would be the difference between the observed temp and the average temp.
 
 **Question 4:**
 
@@ -80,11 +97,51 @@ You'll need to determine the file's delimiter and any comments or skips. You wil
 
 **Answer 4:**
 
+```{r}
+# URL for the dataset
+dat <- "https://data.giss.nasa.gov/gistemp/graphs/graph_data/Global_Mean_Estimates_based_on_Land_and_Ocean_Data/graph.txt"
+
+# Read the data using read_table without specifying a delimiter (spaces are auto-detected)
+temp_dat <- read_table(dat, 
+                       col_names = c("Year", "No_Smoothing", "Lowess_5"),
+                       na = c("-99.99", "-1"))
+
+# View the first few rows of the data
+head(temp_dat)
+
+# Convert the necessary columns to numeric
+temp_dat$No_Smoothing <- as.numeric(temp_dat$No_Smoothing)
+
+# Check if the conversion was successful
+str(temp_dat)
+
+# Remove rows with missing values in 'No_Smoothing' or 'Year'
+temp_dat_clean <- temp_dat %>%
+  filter(!is.na(No_Smoothing) & !is.na(Year))
+
+# Convert 'Year' to numeric if it's not already
+temp_dat_clean$Year <- as.numeric(temp_dat_clean$Year)
+
+```
+
 **Question 5:**
 
 Plot the trend in global mean temperatures over time.  Describe what you see in the plot and how you interpret the patterns you observe.
 
 **Answer 5:**
+
+```{r}
+ggplot(temp_dat_clean, aes(x = Year, y = No_Smoothing)) +
+  geom_line(color = "blue") +  
+  geom_smooth(method = "loess", se = FALSE, color = "red") +  
+  labs(title = "Global Mean Temperature Over Time",
+       x = "Year",
+       y = "Temperature Anomaly (°C)",
+       caption = "Source: NASA GISS") +
+  theme_minimal()
+
+```
+What I see in this plot is that the global mean temperature is slowly increasing as time increases.
 
 ## Evaluating the evidence for a "Pause" in warming?
 
@@ -97,6 +154,7 @@ You will use rolling averages to help you explore the evidence for a pause. Sinc
 Use a search engine (e.g., Google) or a chat LLM to find out how to calculate a rolling average in R. What search term or chat LLM prompt did you use?  What website or answer from the chat LLM did you end up using?  How much did you need to modify the code from the website or chat LLM to answer the question successfully?
 
 **Answer 6:**
+I used ChatGPT I just asked it what a rolling average in R is. "A rolling average (or moving average) in R is a statistical technique used to smooth time series data by averaging data points within a sliding window. It helps identify trends by reducing short-term fluctuations and highlighting longer-term patterns. In a rolling average, a window of data points is defined (for example, a 5-day, 7-day, or 12-month period), and the average of those points is computed. The window then "rolls" over the data, moving one point at a time" (ChatGPT 2025). I had to reask it a couple times to get a better response
 
 **Question 7:**
 
@@ -104,18 +162,62 @@ Use a search engine (e.g., Google) or a chat LLM to find out how to calculate a 
 - Create a data frame from the annual temperature anomaly data (from Question 4) with three new columns: 5-year running averages, 10-year running averages, and 20-year running averages.
 
 **Answer 7:**
+The meaning of 5 year average vs annual average is that 5 year average smooths out year to year fluctuations and keeps continuously calculating. An annual average is the average value for every year which is different and independent.
+
+```{r}
+library(zoo)
+library(dplyr)
+
+head(temp_dat)
+
+temp_dat <- temp_dat %>%
+  mutate(
+    `5_year_avg` = rollapply(No_Smoothing, width = 5, FUN = mean, align = "center", fill = NA),
+    `10_year_avg` = rollapply(No_Smoothing, width = 10, FUN = mean, align = "center", fill = NA),
+    `20_year_avg` = rollapply(No_Smoothing, width = 20, FUN = mean, align = "center", fill = NA)
+  )
+
+head(temp_dat)
+
+```
 
 **Question 8:**
 
 Plot the different averages on the *same plot* and describe what differences you see and why.  
 
 **Answer 8:**
+The differences I see is the larger the year average the smoother the line that we plot will be and the less "noise" we see
+
+```{r}
+temp_dat$Year <- as.numeric(temp_dat$Year)
+
+sum(is.na(temp_dat$No_Smoothing))
+
+temp_dat$`5_year_avg` <- rollmean(temp_dat$No_Smoothing, 5, fill = NA, align = "center")
+temp_dat$`10_year_avg` <- rollmean(temp_dat$No_Smoothing, 10, fill = NA, align = "center")
+temp_dat$`20_year_avg` <- rollmean(temp_dat$No_Smoothing, 20, fill = NA, align = "center")
+
+head(temp_dat)
+
+ggplot(temp_dat, aes(x = Year)) +
+  geom_line(aes(y = No_Smoothing, color = "Annual"), size = 1) + 
+  geom_line(aes(y = `5_year_avg`, color = "5-Year Avg"), size = 1) + 
+  geom_line(aes(y = `10_year_avg`, color = "10-Year Avg"), size = 1) + 
+  geom_line(aes(y = `20_year_avg`, color = "20-Year Avg"), size = 1) + 
+  labs(title = "Global Mean Temperatures", 
+       x = "Year", y = "Temperature Anomaly (°C)", 
+       color = "Legend") + 
+  theme_minimal()
+
+```
 
 **Question 9:**
 
 By examining the data here, what evidence do you find or not find for such a pause? 
 
 **Answer 9:**
+
+Honestly, I do not see much evidence for a pause in my graph. Maybe a little bit in my 5 year average graph from 1998 to 2013 but, the other averages show the values rolling on. There are little pockets within my 5 year average graphy that stall out a little bit.
 
 ## Longer term trends in CO2 Records
 
@@ -158,9 +260,63 @@ Your answer to Question 10 is going to be a mix of code chunks and text that you
 **Answer 10:**
 
 ```{r}
+co2_data <- read.table("vostok.icecore.co2", header = TRUE, skip = 18, fill = TRUE)
+
+colnames(co2_data) <- c("Depth (m)", "Age of the ice (yr BP)", "Age of the air (yr BP)", "CO2 concentration (ppmv)")
+head(co2_data)
+```
+So, I cleaned the data a little bit here because the metadata was killing me. Our variables we are working with are depth (m), age of ice (yr BP), age of the air (yr BP), and CO2 concentration (ppmv). The numbers come from a russian ice observatory.
+
+```{r}
+co2_data$`Age of the ice (yr BP)` <- as.numeric(co2_data$`Age of the ice (yr BP)`)
+co2_data$`Age of the air (yr BP)` <- as.numeric(co2_data$`Age of the air (yr BP)`)
+
+co2_data$Temporal_Resolution_years <- co2_data$`Age of the ice (yr BP)` - co2_data$`Age of the air (yr BP)`
+
+head(co2_data)
+
+max_temp_res <- max(co2_data$Temporal_Resolution_years, na.rm = TRUE)
+
+
+print(max_temp_res)
+```
+
+The temporal resolution of the data is 6653, shown by the code above
+
+```{r}
+co2_data$`Depth (m)` <- as.numeric(gsub("[^0-9.-]", "", co2_data$`Depth (m)`))
+co2_data$`CO2 concentration (ppmv)` <- as.numeric(gsub("[^0-9.-]", "", co2_data$`CO2 concentration (ppmv)`))
+
+str(co2_data)
 
 
 ```
+Some extra data cleaning
+
+```{r}
+co2_data <- co2_data[order(co2_data$`Age of the air (yr BP)`, decreasing = FALSE), ]
+
+co2_data$Calendar_Year <- 2003 - co2_data$`Age of the air (yr BP)`
+
+head(co2_data)
+
+```
+Just used order() to reverse the order of the age of air
+
+```{r}
+
+ggplot(co2_data, aes(x = Calendar_Year, y = `CO2 concentration (ppmv)`)) +
+  geom_line(color = "blue") +      # Line plot
+  labs(title = "CO2 Concentration Over Time",
+       x = "Calendar Year",
+       y = "CO2 Concentration (ppmv)") +
+  theme_minimal() +                 # Clean minimal theme
+  scale_x_continuous(labels = scales::comma) +   # Format x-axis to display as full numbers
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for clarity
+```
+This plot shows the CO2 concentration over time, before the present
+
+I was not able to bind the rows in a timely fashion with stuff going on but it would show the co2 concentration rising over time especially through the present.
 
 # Render and committing
 
