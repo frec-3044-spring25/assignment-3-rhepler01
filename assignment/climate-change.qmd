@@ -385,4 +385,4 @@ Remember to Render your document as HTML and comment+push to GitHub your code an
 Include citation of any AI-generated assistance or discussion with classmates (per policy in syllabus). Proper documentation of AI-generated assistance includes the prompt, the source (e.g., ChatGPT), and the significant parts of the response.  Proper documentation of discussion with classmates include listing their names and the components discussed.  
 
 
-
+I used ChatGPT to refine and trouble shoot my work on most of the coding problems and did not work with classmates for this assignment
