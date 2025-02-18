@@ -304,7 +304,6 @@ head(co2_data)
 Just used order() to reverse the order of the age of air
 
 ```{r}
-
 ggplot(co2_data, aes(x = Calendar_Year, y = `CO2 concentration (ppmv)`)) +
   geom_line(color = "blue") +      # Line plot
   labs(title = "CO2 Concentration Over Time",
@@ -316,7 +315,66 @@ ggplot(co2_data, aes(x = Calendar_Year, y = `CO2 concentration (ppmv)`)) +
 ```
 This plot shows the CO2 concentration over time, before the present
 
-I was not able to bind the rows in a timely fashion with stuff going on but it would show the co2 concentration rising over time especially through the present.
+```{r}
+library(tidyverse)
+
+co2_data <- read.table("vostok.icecore.co2", header = TRUE, skip = 18, fill = TRUE, stringsAsFactors = FALSE)
+
+co2_data <- co2_data[-1, ]
+
+colnames(co2_data) <- c("Depth", "Age_of_ice", "Age_of_air", "CO2_concentration")
+
+co2_data$Age_of_ice <- as.numeric(co2_data$Age_of_ice)
+co2_data$Age_of_air <- as.numeric(co2_data$Age_of_air)
+co2_data$CO2_concentration <- as.numeric(co2_data$CO2_concentration)
+co2_data$Depth <- as.numeric(co2_data$Depth)
+
+
+co2_data$Year <- 2003 - co2_data$Age_of_air
+
+str(co2_data)
+
+co2 <-  read_table("https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.txt", 
+                  comment="#",
+                  col_names = c("year", "month", "decimal_date",
+                                "monthly_average",
+                                "deseasonalized", "days", "sd_days",
+                                "unc_month_mean"),
+                  na = c("-1", "-99.99"))
+colnames(co2) <- c("Year", "Month", "Decimal_Year", "Monthly_Average", "Interpolated")
+co2 <- co2 %>% select(Year, Monthly_Average) %>% rename(CO2_concentration = Monthly_Average)
+
+str(co2_data)
+str(co2)
+colnames(co2_data)
+colnames(co2)
+
+co2_data <- co2_data %>% select(which(!is.na(names(.)) & names(.) != ""))
+
+
+colnames(co2_data) <- make.names(colnames(co2_data), unique = TRUE)
+
+co2_data <- co2_data %>%
+  mutate(across(everything(), as.numeric, .names = "clean_{.col}"))
+
+glimpse(co2_data)
+
+
+
+
+combined_data <- bind_rows(
+  co2_data %>% mutate(Source = "Ice Core") %>% select(Year, CO2_concentration, Source),
+  co2 %>% mutate(Source = "Mauna Loa") %>% select(Year, CO2_concentration, Source)
+)
+
+ggplot(combined_data, aes(x = Year, y = CO2_concentration, color = Source)) + 
+  geom_line() + 
+  labs(title = "CO2 Concentration Over Time", x = "Year", y = "CO2 Concentration (ppmv)") + 
+  theme_minimal() + 
+  scale_x_continuous(labels = scales::comma)
+
+```
+There is a gap in this data but clearly shows the CO2 concentrations skyrocketing into the 1950s. This is clearly global warming and looks like nothing we have ever seen. Recent CO2 concentrations are off the chart compared to historical levels.
 
 # Render and committing
 
