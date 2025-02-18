@@ -1,6 +1,6 @@
 ---
 title: "Climate Change Module"
-author: 'Add name'
+author: 'Ryan Hepler'
 format:
   html:
     embed-resources: true
